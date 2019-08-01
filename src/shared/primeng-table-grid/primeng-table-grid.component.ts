@@ -23,13 +23,26 @@ import { CoreService, PeriodicElement } from '../services/core.service';
 export class PrimengTableGridComponent implements OnInit {
 
   cols: any[];
-  cars: PeriodicElement[];
+  selectedColumns: any[];
+  elements: PeriodicElement[];
+  rowData: any;
 
   constructor(private coreService: CoreService) { }
 
   ngOnInit() {
-    this.cols = this.coreService.tableColumns;
-    this.cars = this.coreService.tableRows;
+    // this.cols = this.coreService.tableColumns;
+    this.elements = this.coreService.tableRows;
+    this.getDate();
+  }
+  getDate() {
+    this.coreService.getData().subscribe(data => {
+      this.rowData = data['data']['data'];
+      this.getTableColumns(this.rowData[0]);
+    });
   }
 
+  getTableColumns(obj) {
+    this.cols = Object.keys(obj.data);
+    this.selectedColumns = [...this.cols];
+  }
 }
