@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, ChangeDetectionStrategy, HostListener, Renderer2, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ChangeDetectionStrategy, HostListener, Renderer2, AfterViewInit, ViewChildren, QueryList } from '@angular/core';
 import { MatPaginator } from '@angular/material/paginator';
 import { SelectionModel } from '@angular/cdk/collections';
 import { MatTableDataSource, MatTable } from '@angular/material/table';
@@ -6,6 +6,7 @@ import { MatSort } from '@angular/material/sort';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { FormControl } from '@angular/forms';
 import { CdkDragDrop, moveItemInArray, CdkDragStart } from '@angular/cdk/drag-drop';
+import { DataService } from '../services/data-service.service';
 
 
 export interface PeriodicElement {
@@ -18,7 +19,18 @@ export interface IColumnResize {
   name: string;
   [key: string]: any;
 }
-
+interface IType {
+  name?: any;
+  proj_name?: any;
+  client_name?: any;
+  status?: any;
+  type?: any;
+  analysis_type?: any;
+  comments?: any;
+  owner?: any;
+  created?: any;
+  modified?: any;
+}
 const ELEMENT_DATA: PeriodicElement[] = [
   { position: 1, name: 'Hydrogen', weight: 1.0079, symbol: 'H' },
   { position: 2, name: 'Helium', weight: 4.0026, symbol: 'He' },
@@ -43,20 +55,23 @@ const ELEMENT_DATA: PeriodicElement[] = [
       state('expanded', style({ height: '*' })),
       transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
     ]),
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  ]
 })
 export class ResizableMatGridComponent implements OnInit {
+
   displayedColumns: string[] = ['select', 'position', 'name', 'weight', 'symbol'];
   columnsForFilter: IColumnResize[];
+  analysesListDataSource: MatTableDataSource<any>;
   dataSource = new MatTableDataSource<PeriodicElement>(ELEMENT_DATA);
   selection = new SelectionModel<PeriodicElement>(true, []);
   expandedElement: PeriodicElement | null;
   columnsToDisplay = new FormControl([...this.displayedColumns]);
 
-  @ViewChild(MatPaginator, { static: true }) paginator: MatPaginator;
+  @ViewChildren(MatPaginator) queryPaginator: QueryList<MatPaginator>;
+  paginator: MatPaginator;
 
-  @ViewChild(MatSort, { static: true }) sort: MatSort;
+  @ViewChildren(MatSort) querySort: QueryList<MatSort>;
+  sort: MatSort;
 
   previousIndex: number;
   selectColumnToShow: string[];
@@ -72,21 +87,30 @@ export class ResizableMatGridComponent implements OnInit {
   isResizingRight: boolean;
   resizableMousemove: () => void;
   resizableMouseup: () => void;
-
   thElm: any;
   startOffset: any;
 
-
-
-  constructor(private renderer: Renderer2) { }
+  /**
+   * For data API's
+   */
+  clientsIds: number[];
+  offset = 0;
+  limit = 30;
+  sortBy = 'created';
+  sortDir = 'desc';
+  searchObj: any;
+  analysesList: any[];
+  totalAnalyses: number;
+  initialAnalysesList: any[];
+  tableName: string = 'analysesTable';
+  columnList: any[];
+  columnListHeaderValue: string[];
+  columnListFilterValue: string[];
+  filterModel: any = {};
+  constructor(private dataService: DataService) { }
 
   ngOnInit(): void {
-    //
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
-
     this.setFilterColumns();
-
     this.selectColumnToShow = [...this.displayedColumns];
 
     // hide or show columns in table
@@ -96,18 +120,82 @@ export class ResizableMatGridComponent implements OnInit {
         this.setFilterColumns();
       }
     );
-
+    this.getClientIds();
+    this.searchObj = this.createObject(this.filterModel);
   }
 
-
-
   ngAfterViewInit() {
+    this.queryPaginator.changes.subscribe((com: QueryList<MatPaginator>) => {
+      this.paginator = com.first;
+      this.analysesListDataSource.paginator = this.paginator;
+      //this.paginator.getNumberOfPages();
+    });
+    this.querySort.changes.subscribe((com: QueryList<MatSort>) => {
+      this.sort = com.first;
+      this.analysesListDataSource.sort = this.sort;
+    });
     // this.boundColumnDraggerToTh();
     // this.setTableResize(this.matTableRef.nativeElement.clientWidth);
   }
 
-  filterTable(columnName, filterValue) {
-    console.log(filterValue.target.value, columnName);
+  /**
+   * To get clientIds
+   */
+  getClientIds(): any {
+
+  // Get client ids
+    // this.dataService.getClientIds().subscribe(res => {
+    //   const clientList = [...res];
+    //   this.clientsIds = clientList.map(val => val.id);
+    //   this.getAnalyses();
+    //   this.getTableColumnConfig();
+    // });
+  }
+
+  /**
+   * To get analyses data
+   */
+  getAnalyses() {
+    this.dataService.getAnalyses(this.clientsIds, this.sortBy, this.sortDir, this.searchObj, this.offset, this.limit)
+      .subscribe((data: any) => {
+        if (data) {
+          this.initialAnalysesList = data.data;
+          this.totalAnalyses = data.totalAnalyses;
+          this.analysesList = this.initialAnalysesList.map(val => val.data);
+          this.analysesListDataSource = new MatTableDataSource<any>(this.analysesList);
+        }
+      });
+  }
+
+  /** To get table configuration object */
+  getTableColumnConfig() {
+    // GEt column config object
+    // this.dataService.getTableColumnConfig(this.tableName).subscribe((colData: any) => {
+    //   this.columnList = colData;
+    //   this.columnListHeaderValue = this.columnList.map(val => val.value);
+    //   this.columnListFilterValue = this.columnList.map(val => val.filterName);
+    // });
+  }
+
+  createObject(objAnalysis) {
+    return Object.keys(objAnalysis).reduce((f, c) => {
+      if (objAnalysis[c] != '') {
+        f[c] = this.filterModel[c];
+      }
+      return f;
+    }, {});
+  }
+
+  /** Callback for sort change */
+  sortChange(event) {
+    this.sortBy = event.active;
+    this.sortDir = event.direction;
+    this.getAnalyses();
+  }
+
+  filterTable() {
+    this.searchObj = this.createObject(this.filterModel);
+    this.getAnalyses();
   }
 
   setFilterColumns() {
@@ -121,7 +209,7 @@ export class ResizableMatGridComponent implements OnInit {
   /** Whether the number of selected elements matches the total number of rows. */
   isAllSelected() {
     const numSelected = this.selection.selected.length;
-    const numRows = this.dataSource.data.length;
+    const numRows = this.analysesListDataSource.data.length;
     return numSelected === numRows;
   }
 
@@ -129,7 +217,7 @@ export class ResizableMatGridComponent implements OnInit {
   masterToggle() {
     this.isAllSelected() ?
       this.selection.clear() :
-      this.dataSource.data.forEach(row => this.selection.select(row));
+      this.analysesListDataSource.data.forEach(row => this.selection.select(row));
   }
 
   isHidden(column: string) {
@@ -150,8 +238,9 @@ export class ResizableMatGridComponent implements OnInit {
 
 
   drop(event: CdkDragDrop<string[]>, index: number) {
-    moveItemInArray(this.displayedColumns, this.previousIndex, index);
-    moveItemInArray(this.columnsForFilter, this.previousIndex, index);
+    moveItemInArray(this.columnListHeaderValue, this.previousIndex, index);
+    moveItemInArray(this.columnListFilterValue, this.previousIndex, index);
+    moveItemInArray(this.columnList, this.previousIndex, index);
   }
   /**
    * Return array for filter columns

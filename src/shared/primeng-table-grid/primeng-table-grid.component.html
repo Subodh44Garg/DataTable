@@ -1,50 +1,42 @@
-<p-table [columns]="cols" [value]="cars" dataKey="vin"
-[resizableColumns]="true" columnResizeMode="expand">
-    <ng-template pTemplate="header" let-columns>
-        <tr>
-            <th style="width: 3em;"></th>
-            <th *ngFor="let col of columns" pResizableColumn>
-                {{col}}
-            </th>
-        </tr>
-    </ng-template>
-    <ng-template pTemplate="body" let-rowData let-expanded="expanded" let-columns="columns">
-        <tr>
-            <td>
-                <a href="#" [pRowToggler]="rowData">
-                    <i [ngClass]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"></i>
-                </a>
-            </td>
-            <td *ngFor="let col of columns">
-                {{rowData[col]}}
-            </td>
-        </tr>
-    </ng-template>
-    <ng-template pTemplate="rowexpansion" let-rowData let-columns="columns">
-        <tr>
-            <td [attr.colspan]="columns.length + 1">
-                <div class="ui-g ui-fluid" style="font-size:16px;padding:20px">
-                    <div class="ui-g-12 ui-md-3" style="text-align:center">
-                        <!-- <img [attr.alt]="rowData.brand" src="assets/showcase/images/demo/car/{{rowData.brand}}.png"> -->
-                    </div>
-                    <div class="ui-g-12 ui-md-9">
-                        <div class="ui-g">
-                            <div class="ui-g-12">
-                                <b>Position:</b> {{rowData.position}}
-                            </div>
-                            <div class="ui-g-12">
-                                <b>Name:</b> {{rowData.name}}
-                            </div>
-                            <div class="ui-g-12">
-                                <b>Weight:</b> {{rowData.weight}}
-                            </div>
-                            <div class="ui-g-12">
-                                <b>symbol:</b> {{rowData.symbol}}
-                            </div>
-                        </div>
-                    </div>
+<div *ngIf="rowData && cols">
+    <p-treeTable #tt [columns]="selectedColumns" [value]="rowData" dataKey="vin" [resizableColumns]="true" columnResizeMode="expand"
+        [reorderableColumns]="true">
+        <ng-template pTemplate="caption">
+            <div style="text-align:left;width: 50%;display: inline-block">
+                <p-multiSelect [options]="cols" [(ngModel)]="selectedColumns" optionLabel="header" selectedItemsLabel="{0} columns selected"
+                    [style]="{minWidth: '200px'}" defaultLabel="Choose Columns">
+                    <ng-template let-col pTemplate="item">
+                        {{col.value}}
+                    </ng-template>
+                </p-multiSelect>
+            </div>
+            <div style="text-align: right ;width: 50%;display: inline-block;vertical-align: text-bottom">
+                    <i class="pi pi-search" style="margin:4px 4px 0 0"></i>
+                    <input type="text" pInputText size="50" placeholder="Global Filter" (input)="tt.filterGlobal($event.target.value, 'contains')"
+                        style="width:auto;height: 34px;">
                 </div>
-            </td>
-        </tr>
-    </ng-template>
-</p-table>
+        </ng-template>
+        <ng-template pTemplate="header" let-columns>
+            <tr [ttRow]="rowNode">
+                <th style="width: 3em;"></th>
+                <th *ngFor="let col of columns" ttResizableColumn ttReorderableColumn class="tableHeader">
+                    {{col}}
+                    <p-treeTableSortIcon [field]="col"></p-treeTableSortIcon>
+                        <input pInputText type="text" (input)="tt.filter($event.target.value, col, col.filterMatchMode)" style="width: 100%">
+                </th>
+            </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-rowNode let-rowData="rowData" let-columns="columns">
+            <tr>
+                <td>
+                    <p-treeTableToggler [rowNode]="rowNode">
+                        <i [ngClass]="expanded ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"></i>
+                    </p-treeTableToggler>
+                </td>
+                <td *ngFor="let col of columns">
+                    {{rowData[col]}}
+                </td>
+            </tr>
+        </ng-template>
+    </p-treeTable>
+</div>

@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 
 export interface PeriodicElement {
   name: string;
@@ -28,5 +29,9 @@ export class CoreService {
     { position: 10, name: 'Neon', weight: 20.1797, symbol: 'Ne' },
   ];
 
-  constructor() { }
+  constructor(private http: HttpClient) { }
+
+  getData(){
+    return this.http.get('assets/data/data.json');
+  }
 }
